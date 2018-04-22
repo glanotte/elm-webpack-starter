@@ -1,63 +1,86 @@
 module Main exposing (..)
+
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing ( onClick )
-
--- component import example
-import Components.Hello exposing ( hello )
-
-
--- APP
-main : Program Never Model Msg
-main =
-  Html.beginnerProgram { model = model, view = view, update = update }
+import Html.Events exposing (onClick)
+import Navigation
+import Routes
 
 
 -- MODEL
-type alias Model = Int
 
-model : Model
-model = 0
+
+type Page
+    = NotFound
+    | Home
+
+
+type alias Model =
+    { page : Page }
+
+
+initialModel : Model
+initialModel =
+    { page = NotFound }
+
 
 
 -- UPDATE
-type Msg = NoOp | Increment
 
-update : Msg -> Model -> Model
+
+type Msg
+    = NewRoute (Maybe Routes.Route)
+    | Visit Routes.Route
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-  case msg of
-    NoOp -> model
-    Increment -> model + 1
+    case ( msg, model.page ) of
+        ( NewRoute maybeRoute, _ ) ->
+            setNewPage maybeRoute model
+
+        ( Visit route, _ ) ->
+            ( model, Routes.visit route )
+
+
+setNewPage : Maybe Routes.Route -> Model -> ( Model, Cmd Msg )
+setNewPage maybeRoute model =
+    case maybeRoute of
+        Just Routes.Home ->
+            ( { model | page = Home }, Cmd.none )
+
+        Nothing ->
+            ( { model | page = NotFound }, Cmd.none )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.none
+
 
 
 -- VIEW
--- Html is defined as: elem [ attribs ][ children ]
--- CSS can be applied via class names or inline style attrib
+
+
 view : Model -> Html Msg
 view model =
-  div [ class "container", style [("margin-top", "30px"), ( "text-align", "center" )] ][    -- inline CSS (literal)
-    div [ class "row" ][
-      div [ class "col-xs-12" ][
-        div [ class "jumbotron" ][
-          img [ src "static/img/elm.jpg", style styles.img ] []                             -- inline CSS (via var)
-          , hello model                                                                     -- ext 'hello' component (takes 'model' as arg)
-          , p [] [ text ( "Elm Webpack Starter" ) ]
-          , button [ class "btn btn-primary btn-lg", onClick Increment ] [                  -- click handler
-            span[ class "glyphicon glyphicon-star" ][]                                      -- glyphicon
-            , span[][ text "FTW!" ]
-          ]
-        ]
-      ]
-    ]
-  ]
+    div [ class "container" ] []
 
 
--- CSS STYLES
-styles : { img : List ( String, String ) }
-styles =
-  {
-    img =
-      [ ( "width", "33%" )
-      , ( "border", "4px solid #337AB7")
-      ]
-  }
+
+-- PROGRAM
+
+
+main : Program Never Model Msg
+main =
+    Navigation.program (Routes.match >> NewRoute)
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        }
+
+
+init : Navigation.Location -> ( Model, Cmd Msg )
+init location =
+    setNewPage (Routes.match location) initialModel
